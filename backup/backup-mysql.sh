@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# backup-mysql.sh v1.0.1
+# backup-mysql.sh v1.0.2
 # JR. Lambea 
 #---
 
@@ -28,7 +28,7 @@ function GetDatabases {
 }
 
 databases=$(GetDatabases)
-dbCount=$(echo $databases | wc -l)
+dbCount=$(echo $databases | wc -w)
 
 echo "$(GetLogTimestamp) ${dbCount} databases to backup."
 
@@ -45,7 +45,7 @@ for db in $databases; do
         fileSize=$(du -k ${outputFile} | awk '{print $1}')
 
         echo "$(GetLogTimestamp) Uploading ${outputFile} to S3 (${S3Bucket})..."
-        aws s3 cp ${outputFile} s3://${S3Bucket}/mysql/ 2> /dev/null
+        /usr/local/bin/aws s3 cp ${outputFile} s3://${S3Bucket}/mysql/
         echo "$(GetLogTimestamp) Upload of ${outputFile} finished."
         echo "$(GetLogTimestamp) Deleting ${outputFile}..."
         rm ${outputFile}
