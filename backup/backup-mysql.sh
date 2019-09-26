@@ -1,13 +1,14 @@
 #!/bin/bash
 
-# backup-mysql.sh v1
+# backup-mysql.sh v1.0.1
 # JR. Lambea 
 #---
 
 excludedDB="information_schema|performance_schema|test"
 configFile="~/.mysql.cfg"
-backupFolder="/tmp/"
+backupFolder="/tmp"
 S3Bucket="contoso-backups"
+mysqlBinFolder="/opt/bitnami/mysql/bin"
 
 if [ -s $configFile ]; then
     echo "The config file ${configFile} not exist."
@@ -23,7 +24,7 @@ function GetLogTimestamp {
 }
 
 function GetDatabases {
-    mysqlshow --defaults-extra-file=$configFile | sed -n '4,$p' | egrep -v "\+|${excludedDB}" | cut -d" " -f2
+    "${mysqlBinFolder}/mysqlshow" --defaults-extra-file=$configFile | sed -n '4,$p' | egrep -v "\+|${excludedDB}" | cut -d" " -f2
 }
 
 databases=$(GetDatabases)
@@ -34,12 +35,12 @@ echo "$(GetLogTimestamp) ${dbCount} databases to backup."
 for db in $databases; do
     echo "$(GetLogTimestamp) Backing up ${db} database..."
     timestamp="$(GetTimestamp)"
-    outputFile="${db}.${timestamp}.sql.gz"
-    mysqldump --defaults-extra-file=$configFile -B "${db}" --add-drop-database --add-drop-table | gzip -9 -c >> "${backupFolder}${outputFile}"
+    outputFile="${backupFolder}/${db}.${timestamp}.sql.gz"
+    "${mysqlBinFolder}/mysqldump" --defaults-extra-file=$configFile -B "${db}" --add-drop-database --add-drop-table | gzip -9 -c >> "${outputFile}"
 
     echo "$(GetLogTimestamp) Backup of ${db} finished."
     
-    if [ -s ${outputFile} ]; then
+    if [ -s "${outputFile}" ]; then
         echo "$(GetLogTimestamp) The file has been created, following the process."
         fileSize=$(du -k ${outputFile} | awk '{print $1}')
 
