@@ -1,17 +1,55 @@
 #!/bin/bash
 
-# backup-mysql.sh v1.0.2
+# backup-mysql.sh v1.5.2
 # JR. Lambea 
 #---
 
 excludedDB="information_schema|performance_schema|test"
-configFile="~/.mysql.cfg"
+configFile="${HOME}/.mysql.cfg"
 backupFolder="/tmp"
-S3Bucket="contoso-backups"
-mysqlBinFolder="/opt/bitnami/mysql/bin"
+S3Bucket=backup-test
+mysqlBinFolder="/usr/bin"
+bold="\e[1m"
+default="\e[0m"
+
+if [[ $1 == "--config" || $1 == "--configure" ]]; then
+    echo "Configuration mode..."
+
+    echo -e "${bold}Alert!${default} Execute this script with the user wich will launch the backup!"
+    read -p "Which MySQL user will launch the backup: " mysqlUser
+    read -sp "And the ${mysqlUser} password is...: " mysqlPasswd
+    echo
+    echo -e "[mysqldump]\nuser=${mysqlUser}\npassword=\"${mysqlPasswd}\"\n\n[client]\nuser=${mysqlUser}\npassword=\"${mysqlPasswd}\"" > "${configFile}"
+    sleep 1
+    chmod 600 "${configFile}"
+
+    read -p "To which bucket the backup will be saved: " S3Bucket
+    sed "s/^S3Bucket=.*/S3Bucket="${S3Bucket}"/" "$0" > "/tmp/$0"
+
+    read -p "Which week days you want to execute the backup (ex: \"1-5\" = weekdays)? " backupDays
+    read -p "To which hour? " backupHour
+
+    echo "Writing on crontab..."
+    
+    if ! crontab -l &>/dev/null; then
+        echo "0 ${backupHour} * * ${backupDays} $(realpath $0)" | crontab -
+    else
+        (echo "0 ${backupHour} * * ${backupDays} $(realpath $0)" ; crontab -l) | crontab -
+    fi
+
+    echo "Launching the replacement of the current script, wait 2 seconds..."
+    nohup /tmp/$0 --copy $(realpath $0) &>/dev/null &
+    exit 0
+fi
+
+if [[ $1 == "--copy" && $# == 2 ]]; then
+    sleep 2
+    cp -p "$0" "$2"
+    exit 0
+fi
 
 if [ -s $configFile ]; then
-    echo "The config file ${configFile} not exist."
+    echo "The config file ${configFile} not exist. Please, execute \"$0 --config\"."
     exit 5
 fi
 
