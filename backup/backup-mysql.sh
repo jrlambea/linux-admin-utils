@@ -48,7 +48,7 @@ if [[ $1 == "--copy" && $# == 2 ]]; then
     exit 0
 fi
 
-if [ -s $configFile ]; then
+if [ ! -s $configFile ]; then
     echo "The config file ${configFile} not exist. Please, execute \"$0 --config\"."
     exit 5
 fi
